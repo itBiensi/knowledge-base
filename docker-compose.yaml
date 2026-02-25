@@ -1,4 +1,17 @@
 services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      - docmost
+
   docmost:
     image: docmost/docmost:latest
     depends_on:
@@ -7,11 +20,13 @@ services:
       redis:
         condition: service_healthy
     env_file: .env
-    ports:
-      - "8889:3000"
+    expose:
+      - "3000"
     restart: unless-stopped
     volumes:
       - docmost_data:/app/data/storage
+    networks:
+      - docmost_network
 
   db:
     image: postgres:16-alpine
@@ -27,6 +42,8 @@ services:
     restart: unless-stopped
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks:
+      - docmost_network
 
   redis:
     image: redis:7-alpine
@@ -39,8 +56,16 @@ services:
     restart: unless-stopped
     volumes:
       - redis_data:/data
+    networks:
+      - docmost_network
+
+networks:
+  docmost_network:
+    driver: bridge
 
 volumes:
+  caddy_data:
+  caddy_config:
   docmost_data:
   db_data:
   redis_data:

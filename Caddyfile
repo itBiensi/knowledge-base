@@ -1,0 +1,9 @@
+# Replace with your actual domain
+your-domain.com {
+    reverse_proxy docmost:3000
+}
+
+# For local testing without a domain, use:
+# localhost:8889 {
+#     reverse_proxy docmost:3000
+# }

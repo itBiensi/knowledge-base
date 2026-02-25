@@ -1,13 +1,14 @@
 # Docmost Knowledge Base
 
-Self-hosted Docmost deployment using Docker Compose. Docmost is a collaborative wiki and knowledge base software (similar to Notion or Confluence).
+Self-hosted Docmost deployment using Docker Compose with Caddy reverse proxy for automatic HTTPS. Docmost is a collaborative wiki and knowledge base software (similar to Notion or Confluence).
 
 ## Quick Start
 
 ### Prerequisites
 
 - Docker and Docker Compose installed
-- Port 8889 available
+- Domain name pointing to your server (for production)
+- Ports 80 and 443 available (for Caddy)
 
 ### Installation
 
@@ -21,25 +22,41 @@ Self-hosted Docmost deployment using Docker Compose. Docmost is a collaborative 
    ```bash
    cp .env.example .env
    ```
-   
+
    Edit `.env` and update:
    - `APP_SECRET` - Generate a random 32+ character string
    - `DB_PASSWORD` - Set a strong database password
    - SMTP settings (optional, for email notifications)
 
-3. **Start the services**
+3. **Configure domain (Production)**
+
+   Edit `Caddyfile` and replace `your-domain.com` with your actual domain:
+   ```caddy
+   your-domain.com {
+       reverse_proxy docmost:3000
+   }
+   ```
+
+   Update `.env`:
+   ```bash
+   APP_URL=https://your-domain.com
+   ```
+
+4. **Start the services**
    ```bash
    docker-compose up -d
    ```
 
-4. **Access Docmost**
-   
-   Open your browser and navigate to: **http://localhost:8889**
+5. **Access Docmost**
+
+   - **Local**: http://localhost:8889
+   - **Production**: https://your-domain.com
 
 ## Architecture
 
 | Service | Image | Purpose |
 |---------|-------|---------|
+| `caddy` | `caddy:2-alpine` | Reverse proxy with auto HTTPS |
 | `docmost` | `docmost/docmost:latest` | Main application |
 | `db` | `postgres:16-alpine` | PostgreSQL database |
 | `redis` | `redis:7-alpine` | Redis cache |
@@ -60,10 +77,31 @@ Self-hosted Docmost deployment using Docker Compose. Docmost is a collaborative 
 | `SMTP_USERNAME` | SMTP username | *(optional)* |
 | `SMTP_PASSWORD` | SMTP password | *(optional)* |
 
+### Caddy Domain Configuration
+
+Edit `Caddyfile` to configure your domain:
+
+```caddy
+# Production (with automatic HTTPS)
+your-domain.com {
+    reverse_proxy docmost:3000
+}
+
+# Or for local testing
+localhost:8889 {
+    reverse_proxy docmost:3000
+}
+```
+
+Caddy automatically obtains and renews SSL certificates from Let's Encrypt.
+
 ### Ports
 
-- **External**: `8889`
-- **Internal**: `3000`
+| Port | Service | Description |
+|------|---------|-------------|
+| `80` | Caddy | HTTP (redirects to HTTPS) |
+| `443` | Caddy | HTTPS |
+| `8889` | Docmost | Direct access (local only) |
 
 ## Common Commands
 
@@ -131,9 +169,35 @@ docker-compose up -d --force-recreate docmost
 ## Data Persistence
 
 Data is stored in Docker volumes:
+- `caddy_data` - Caddy SSL certificates
+- `caddy_config` - Caddy configuration
 - `docmost_data` - File uploads
 - `db_data` - Database
 - `redis_data` - Cache
+
+## Production Deployment
+
+### DNS Configuration
+
+Point your domain to your server:
+
+| Type | Name | Value |
+|------|------|-------|
+| `A` | `@` | Your server IP |
+| `A` | `knowledge` (optional) | Your server IP |
+
+### Firewall Settings
+
+Ensure these ports are open:
+- **80/tcp** - HTTP (for SSL certificate issuance)
+- **443/tcp** - HTTPS (secure access)
+
+### Caddy SSL Certificates
+
+Caddy automatically:
+- Obtains SSL certificates from Let's Encrypt
+- Renews certificates before expiration
+- Stores certificates in `caddy_data` volume
 
 ## Security Notes
 
